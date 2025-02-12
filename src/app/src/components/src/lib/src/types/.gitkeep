@@ -1,6 +1,0 @@
-export interface Plant {
-  id: string;
-  name: string;
-  scientificName: string;
-  quantity: number;
-}
