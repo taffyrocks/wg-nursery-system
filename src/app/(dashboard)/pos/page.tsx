@@ -2,41 +2,48 @@
 
 import { useState, useEffect } from 'react';
 import { getPlants, getCustomers, addOrder, addOrderItem, updateInventory } from '@/lib/firestore';
-import { Search, Plus, Minus, User, ShoppingCart, X, CreditCard, Receipt } from 'lucide-react';
 import { Plant, Customer, InventoryItem } from '@/types';
+import { Search, ShoppingCart, Plus, Minus, X, User, CreditCard } from 'lucide-react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+type CartItem = {
+  plant: Plant;
+  quantity: number;
+  inventoryId: string;
+};
 
 export default function POSPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [inventory, setInventory] = useState<Record<string, number>>({});
-  const [cart, setCart] = useState<Array<{plant: Plant, quantity: number}>>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [processingOrder, setProcessingOrder] = useState(false);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [plantsData, customersData, inventoryData] = await Promise.all([
+        const [plantsData, customersData] = await Promise.all([
           getPlants(),
-          getCustomers(),
-          fetch('/api/inventory').then(res => res.json())
+          getCustomers()
         ]);
         
-        // Create inventory map by plant ID
-        const inventoryMap = inventoryData.reduce((acc: Record<string, number>, item: InventoryItem) => {
-          acc[item.plantId] = (acc[item.plantId] || 0) + item.quantityAvailable;
-          return acc;
-        }, {});
+        // Fetch inventory
+        const inventorySnapshot = await getDocs(collection(db, 'inventory'));
+        const inventoryData = inventorySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as InventoryItem[];
         
         setPlants(plantsData);
         setCustomers(customersData);
-        setInventory(inventoryMap);
+        setInventory(inventoryData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -47,40 +54,64 @@ export default function POSPage() {
     fetchData();
   }, []);
 
-  const filteredPlants = plants.filter(plant => {
-    const inStock = inventory[plant.id] > 0;
-    const matchesSearch = plant.commonName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         plant.scientificName.toLowerCase().includes(searchTerm.toLowerCase());
-    return inStock && matchesSearch;
+  const availablePlants = plants.filter(plant => {
+    // Check if plant has inventory
+    const plantInventory = inventory.find(item => 
+      item.plantId === plant.id && item.quantityAvailable > 0
+    );
+    return plantInventory !== undefined;
   });
 
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    (customer.phone && customer.phone.includes(customerSearch))
+  const filteredPlants = availablePlants.filter(plant => 
+    plant.commonName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    plant.scientificName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    (customer.phone && customer.phone.includes(customerSearchTerm))
   );
 
   const addToCart = (plant: Plant) => {
+    // Find inventory for this plant
+    const plantInventory = inventory.find(item => 
+      item.plantId === plant.id && item.quantityAvailable > 0
+    );
+    
+    if (!plantInventory) return;
+
     const existingItem = cart.find(item => item.plant.id === plant.id);
+    
     if (existingItem) {
       // Check if we have enough inventory
-      if (existingItem.quantity < inventory[plant.id]) {
+      if (existingItem.quantity < plantInventory.quantityAvailable) {
         setCart(cart.map(item => 
-          item.plant.id === plant.id 
-            ? { ...item, quantity: item.quantity + 1 } 
+          item.plant.id === plant.id
+            ? { ...item, quantity: item.quantity + 1 }
             : item
         ));
       }
     } else {
-      setCart([...cart, { plant, quantity: 1 }]);
+      setCart([...cart, { 
+        plant, 
+        quantity: 1,
+        inventoryId: plantInventory.id
+      }]);
     }
   };
 
-  const updateQuantity = (plantId: string, delta: number) => {
+  const updateQuantity = (plantId: string, change: number) => {
+    // Find inventory for this plant
+    const cartItem = cart.find(item => item.plant.id === plantId);
+    if (!cartItem) return;
+    
+    const plantInventory = inventory.find(item => item.id === cartItem.inventoryId);
+    if (!plantInventory) return;
+    
     setCart(cart.map(item => {
       if (item.plant.id === plantId) {
-        const newQuantity = item.quantity + delta;
-        // Ensure quantity is within inventory limits and positive
-        if (newQuantity > 0 && newQuantity <= inventory[plantId]) {
+        const newQuantity = item.quantity + change;
+        if (newQuantity > 0 && newQuantity <= plantInventory.quantityAvailable) {
           return { ...item, quantity: newQuantity };
         }
       }
@@ -92,31 +123,32 @@ export default function POSPage() {
     setCart(cart.filter(item => item.plant.id !== plantId));
   };
 
-  const calculateTotal = () => {
-    return cart.reduce((total, item) => total + (item.plant.price * item.quantity), 0);
-  };
-
-  const handleCustomerSelect = (customer: Customer) => {
+  const selectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     setShowCustomerSearch(false);
   };
 
-  const processOrder = async () => {
+  const calculateTotal = () => {
+    return cart.reduce((sum, item) => sum + (item.plant.price * item.quantity), 0);
+  };
+
+  const handleProcessPayment = async () => {
     if (cart.length === 0) return;
     
-    setProcessingOrder(true);
+    setProcessingPayment(true);
     
     try {
       // Create order
+      const orderTotal = calculateTotal();
       const orderRef = await addOrder({
         customerId: selectedCustomer?.id,
         orderDate: new Date(),
         status: 'completed',
-        totalAmount: calculateTotal(),
-        shippingAddress: selectedCustomer?.address
+        totalAmount: orderTotal,
+        notes: 'POS Sale'
       });
       
-      // Create order items
+      // Add order items and update inventory
       for (const item of cart) {
         await addOrderItem({
           orderId: orderRef.id,
@@ -126,26 +158,28 @@ export default function POSPage() {
           status: 'shipped'
         });
         
-        // Update inventory (this would typically be handled by a Firestore trigger)
-        // But we'll handle it manually here for simplicity
-        // In a real app, you'd update specific inventory items
-        await updateInventory(item.plant.id, { quantityAvailable: inventory[item.plant.id] - item.quantity });
+        // Update inventory
+        const inventoryItem = inventory.find(inv => inv.id === item.inventoryId);
+        if (inventoryItem) {
+          await updateInventory(item.inventoryId, {
+            quantityAvailable: inventoryItem.quantityAvailable - item.quantity
+          });
+        }
       }
       
-      setOrderId(orderRef.id);
-      setOrderComplete(true);
+      setPaymentSuccess(true);
+      // Reset cart after timeout
+      setTimeout(() => {
+        setCart([]);
+        setSelectedCustomer(null);
+        setPaymentSuccess(false);
+      }, 3000);
+      
     } catch (error) {
-      console.error('Error processing order:', error);
+      console.error('Error processing payment:', error);
     } finally {
-      setProcessingOrder(false);
+      setProcessingPayment(false);
     }
-  };
-
-  const resetOrder = () => {
-    setCart([]);
-    setSelectedCustomer(null);
-    setOrderComplete(false);
-    setOrderId(null);
   };
 
   if (loading) {
@@ -156,64 +190,13 @@ export default function POSPage() {
     );
   }
 
-  if (orderComplete) {
-    return (
-      <div className="max-w-md mx-auto mt-12 bg-white shadow rounded-lg overflow-hidden">
-        <div className="p-6 bg-green-50 border-b">
-          <div className="flex items-center justify-center mb-4">
-            <div className="rounded-full bg-green-100 p-3">
-              <Receipt className="h-8 w-8 text-green-600" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-semibold text-center text-green-800">Order Complete</h2>
-          <p className="text-center text-gray-600 mt-1">Order #{orderId}</p>
-        </div>
-        
-        <div className="p-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold">Order Summary</h3>
-            
-            {cart.map(item => (
-              <div key={item.plant.id} className="flex justify-between">
-                <span>{item.quantity} x {item.plant.commonName}</span>
-                <span>${(item.plant.price * item.quantity).toFixed(2)}</span>
-              </div>
-            ))}
-            
-            <div className="border-t pt-4 flex justify-between font-semibold">
-              <span>Total</span>
-              <span>${calculateTotal().toFixed(2)}</span>
-            </div>
-            
-            {selectedCustomer && (
-              <div className="bg-gray-50 p-4 rounded mt-6">
-                <h3 className="font-semibold mb-2">Customer</h3>
-                <p>{selectedCustomer.name}</p>
-                {selectedCustomer.email && <p className="text-sm text-gray-600">{selectedCustomer.email}</p>}
-                {selectedCustomer.phone && <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>}
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-8">
-            <button
-              onClick={resetOrder}
-              className="w-full py-3 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              New Sale
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col md:flex-row gap-6">
-      {/* Products Section */}
-      <div className="flex-1">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-4">Point of Sale</h1>
+    <div className="flex min-h-[calc(100vh-64px)]">
+      {/* Products section */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Point of Sale</h1>
+          
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
@@ -226,85 +209,94 @@ export default function POSPage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredPlants.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-gray-500">
-              No plants found in inventory
-            </div>
-          ) : (
-            filteredPlants.map(plant => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredPlants.map((plant) => {
+            const plantInventory = inventory.find(item => 
+              item.plantId === plant.id && item.quantityAvailable > 0
+            );
+            const availableQuantity = plantInventory?.quantityAvailable || 0;
+            
+            return (
               <button
                 key={plant.id}
                 onClick={() => addToCart(plant)}
-                className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow text-left"
+                disabled={availableQuantity === 0}
+                className="bg-white p-4 rounded-lg shadow text-left hover:shadow-md transition-shadow disabled:opacity-50"
               >
-                <h3 className="font-semibold truncate">{plant.commonName}</h3>
-                <p className="text-sm text-gray-600 truncate">{plant.scientificName}</p>
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-lg font-bold">${plant.price.toFixed(2)}</p>
-                  <span className="text-sm text-gray-600">Stock: {inventory[plant.id]}</span>
+                <h3 className="font-medium truncate">{plant.commonName}</h3>
+                <p className="text-sm text-gray-500 truncate">{plant.scientificName}</p>
+                <div className="mt-2 flex justify-between items-center">
+                  <span className="font-bold">${plant.price.toFixed(2)}</span>
+                  <span className="text-sm text-gray-500">Stock: {availableQuantity}</span>
                 </div>
               </button>
-            ))
-          )}
-        </div>
-      </div>
-      
-      {/* Cart Section */}
-      <div className="w-full md:w-96 bg-white shadow-lg rounded-lg">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold">Current Sale</h2>
+            );
+          })}
         </div>
         
-        <div className="p-4">
+        {filteredPlants.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No plants found
+          </div>
+        )}
+      </div>
+      
+      {/* Cart section */}
+      <div className="w-96 bg-white shadow-lg flex flex-col">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold">Current Sale</h2>
+        </div>
+        
+        {/* Customer selection */}
+        <div className="p-4 border-b">
           {selectedCustomer ? (
-            <div className="bg-gray-50 p-3 rounded-md mb-4 flex justify-between items-center">
+            <div className="flex justify-between items-center">
               <div>
                 <div className="font-medium">{selectedCustomer.name}</div>
-                {selectedCustomer.phone && (
-                  <div className="text-sm text-gray-600">{selectedCustomer.phone}</div>
-                )}
+                <div className="text-sm text-gray-500">{selectedCustomer.phone}</div>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedCustomer(null)}
-                className="p-1 hover:bg-gray-200 rounded-full"
+                className="p-1 hover:bg-gray-100 rounded-full"
               >
-                <X className="h-4 w-4 text-gray-600" />
+                <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
           ) : (
-            <div className="mb-4">
+            <div>
               <button
                 onClick={() => setShowCustomerSearch(true)}
-                className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
+                className="flex items-center gap-2 w-full px-3 py-2 border border-dashed rounded-md hover:bg-gray-50"
               >
-                <User className="h-5 w-5" />
-                Add Customer
+                <User className="h-5 w-5 text-gray-400" />
+                <span className="text-gray-500">Select Customer (Optional)</span>
               </button>
               
               {showCustomerSearch && (
-                <div className="mt-2">
+                <div className="mt-3 space-y-3">
                   <input
                     type="text"
                     placeholder="Search by name or phone..."
                     className="w-full px-3 py-2 border rounded-md"
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
                   />
                   
-                  <div className="mt-1 max-h-48 overflow-y-auto border rounded-md">
+                  <div className="max-h-40 overflow-y-auto border rounded-md">
                     {filteredCustomers.length === 0 ? (
-                      <div className="p-2 text-center text-gray-500 text-sm">No customers found</div>
+                      <div className="p-3 text-center text-gray-500 text-sm">
+                        No customers found
+                      </div>
                     ) : (
-                      filteredCustomers.slice(0, 5).map(customer => (
+                      filteredCustomers.map(customer => (
                         <button
                           key={customer.id}
-                          onClick={() => handleCustomerSelect(customer)}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b last:border-b-0"
+                          className="w-full text-left p-3 hover:bg-gray-50 border-b last:border-b-0"
+                          onClick={() => selectCustomer(customer)}
                         >
                           <div className="font-medium">{customer.name}</div>
                           {customer.phone && (
-                            <div className="text-sm text-gray-600">{customer.phone}</div>
+                            <div className="text-sm text-gray-500">{customer.phone}</div>
                           )}
                         </button>
                       ))
@@ -316,21 +308,80 @@ export default function POSPage() {
           )}
         </div>
         
-        <div className="px-4 border-t pt-4 flex-1 overflow-auto">
+        {/* Cart items */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {cart.length === 0 ? (
-            <div className="py-8 text-center text-gray-500">
-              <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <div className="text-center py-12 text-gray-500">
+              <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>Cart is empty</p>
-              <p className="text-sm">Add items from inventory</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {cart.map(item => (
-                <div key={item.plant.id} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-medium">{item.plant.commonName}</h3>
-                    <p className="text-sm text-gray-600">${item.plant.price.toFixed(2)} each</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateQuantity(item.
+            cart.map((item) => (
+              <div key={item.plant.id} className="flex gap-4">
+                <div className="flex-1">
+                  <div className="font-medium">{item.plant.commonName}</div>
+                  <div className="text-sm text-gray-500">${item.plant.price.toFixed(2)} each</div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateQuantity(item.plant.id, -1)}
+                    className="p-1 hover:bg-gray-100 rounded-full"
+                  >
+                    <Minus className="h-4 w-4 text-gray-500" />
+                  </button>
+                  
+                  <span className="min-w-[2rem] text-center">{item.quantity}</span>
+                  
+                  <button
+                    onClick={() => updateQuantity(item.plant.id, 1)}
+                    className="p-1 hover:bg-gray-100 rounded-full"
+                  >
+                    <Plus className="h-4 w-4 text-gray-500" />
+                  </button>
+                  
+                  <button
+                    onClick={() => removeFromCart(item.plant.id)}
+                    className="p-1 hover:bg-gray-100 rounded-full"
+                  >
+                    <X className="h-5 w-5 text-red-500" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        
+        {/* Totals and checkout */}
+        <div className="p-4 border-t">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-gray-500">Subtotal</span>
+            <span>${calculateTotal().toFixed(2)}</span>
+          </div>
+          
+          <div className="flex justify-between items-center mb-4 font-bold text-lg">
+            <span>Total</span>
+            <span>${calculateTotal().toFixed(2)}</span>
+          </div>
+          
+          <button
+            onClick={handleProcessPayment}
+            disabled={cart.length === 0 || processingPayment || paymentSuccess}
+            className="w-full py-3 flex justify-center items-center gap-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+          >
+            {processingPayment ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : paymentSuccess ? (
+              <span>Payment Successful! ✓</span>
+            ) : (
+              <>
+                <CreditCard className="h-5 w-5" />
+                <span>Process Payment</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
