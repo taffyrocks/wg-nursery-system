@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "export": "next build && next export",
-    "start": "next start",
-    "lint": "next lint",
-    "deploy": "npm run export && firebase deploy"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "export": "next build && next export",
+  "deploy": "npm run export && firebase deploy",
+  "init-db": "curl http://localhost:3000/api/setup-database"
+},
   "dependencies": {
     "next": "14.1.0",
     "react": "^18",
