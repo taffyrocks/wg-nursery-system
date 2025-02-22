@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db } from '../../../lib/firebase';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { Leaf, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 
