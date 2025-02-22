@@ -63,7 +63,6 @@ export default function Dashboard() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Stat cards */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-green-100 rounded-full">
@@ -112,8 +111,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-      
-      {/* Additional dashboard sections can be added here */}
     </div>
   );
 }
