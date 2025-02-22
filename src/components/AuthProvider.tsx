@@ -1,8 +1,9 @@
-'use client';
+$content = @'
+"use client";
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '@/lib/firebase';
-import { User, onAuthStateChanged, signOut } from 'firebase/auth';
+import { createContext, useContext, useEffect, useState } from "react";
+import { User, onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface AuthContextType {
   user: User | null;
@@ -41,3 +42,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+'@
+
+$content | Out-File -FilePath "AuthProvider.tsx" -Encoding utf8
