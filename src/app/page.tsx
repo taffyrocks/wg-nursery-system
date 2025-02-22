@@ -1,3 +1,4 @@
+$content = @'
 'use client';
 
 import { useEffect } from 'react';
@@ -25,3 +26,6 @@ export default function Home() {
     </div>
   );
 }
+'@ 
+
+$content | Out-File -FilePath "page.tsx" -Encoding utf8
