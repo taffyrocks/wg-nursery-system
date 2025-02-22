@@ -1,4 +1,6 @@
-// Import the functions you need from the SDKs you need
+cd ..\lib
+
+$content = @'
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -13,7 +15,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:475342845298:web:7e640e00d5656a544a59eb"
 };
 
-// Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+'@
+
+$content | Out-File -FilePath "firebase.ts" -Encoding utf8
