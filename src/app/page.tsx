@@ -1,9 +1,8 @@
-$content = @'
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth } from '../components/AuthProvider';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -26,6 +25,3 @@ export default function Home() {
     </div>
   );
 }
-'@ 
-
-$content | Out-File -FilePath "page.tsx" -Encoding utf8
