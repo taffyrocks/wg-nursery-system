@@ -1,7 +1,3 @@
-$content = @'
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-'@
-
-$content | Out-File -FilePath "globals.css" -Encoding utf8
