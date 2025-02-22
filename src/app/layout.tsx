@@ -1,4 +1,3 @@
-$content = @'
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/components/AuthProvider'
@@ -25,6 +24,3 @@ export default function RootLayout({
     </html>
   )
 }
-'@
-
-$content | Out-File -FilePath "layout.tsx" -Encoding utf8
