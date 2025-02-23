@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { db } from '../../../lib/firebase';
 import { getPlants, getCustomers, addOrder, addOrderItem, updateInventory } from '../../../lib/firestore';
 import { Plant, Customer, InventoryItem } from '../../../types';
 import { Search, ShoppingCart, Plus, Minus, X, User, CreditCard } from 'lucide-react';
