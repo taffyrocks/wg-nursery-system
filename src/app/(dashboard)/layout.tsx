@@ -1,7 +1,7 @@
-'use client';
+use client';
 
 import Navigation from '../../components/Navigation';
-import { AuthProvider, useAuth } from '../../components/AuthProvider';  // Updated import
+import { useAuth } from '../../components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
