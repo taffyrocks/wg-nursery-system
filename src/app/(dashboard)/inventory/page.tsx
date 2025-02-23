@@ -6,7 +6,6 @@ import { db } from '../../../lib/firebase';
 import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-// Sample products to initialize the database
 const sampleProducts = [
   {
     scientificName: "Monstera deliciosa",
@@ -31,22 +30,6 @@ const sampleProducts = [
     quantity: 20,
     price: 34.99,
     location: "Greenhouse A"
-  },
-  {
-    scientificName: "Strelitzia nicolai",
-    commonName: "Giant Bird of Paradise",
-    description: "Dramatic plant with large banana-like leaves",
-    quantity: 10,
-    price: 89.99,
-    location: "Greenhouse C"
-  },
-  {
-    scientificName: "Philodendron brasil",
-    commonName: "Brazil Philodendron",
-    description: "Trailing plant with heart-shaped variegated leaves",
-    quantity: 30,
-    price: 19.99,
-    location: "Greenhouse B"
   }
 ];
 
@@ -58,7 +41,6 @@ export default function InventoryPage() {
   useEffect(() => {
     const initializeInventory = async () => {
       try {
-        // Check if inventory exists
         const inventoryRef = collection(db, 'inventory');
         const snapshot = await getDocs(inventoryRef);
         
