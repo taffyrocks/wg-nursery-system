@@ -1,4 +1,4 @@
-use client';
+'use client';  // Note the quotes are different here
 
 import Navigation from '../../components/Navigation';
 import { useAuth } from '../../components/AuthProvider';
