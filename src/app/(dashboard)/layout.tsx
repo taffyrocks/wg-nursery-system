@@ -1,7 +1,7 @@
 'use client';
 
 import Navigation from '../../components/Navigation';
-import { useAuth } from '../../components/AuthProvider';  // Make sure this path is correct
+import { AuthProvider, useAuth } from '../../components/AuthProvider';  // Updated import
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
