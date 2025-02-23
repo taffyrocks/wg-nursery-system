@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { addPlant } from '@/lib/firestore';
+import { addPlant } from '../../../../lib/firestore';  // Updated path
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 
