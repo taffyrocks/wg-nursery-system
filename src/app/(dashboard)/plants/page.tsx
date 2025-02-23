@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getPlants } from '@/lib/firestore';
+import { getPlants } from '../../../lib/firestore';
 import Link from 'next/link';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Plant } from '@/types';
+import { Plant } from '../../../types';
 
 export default function PlantsPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
