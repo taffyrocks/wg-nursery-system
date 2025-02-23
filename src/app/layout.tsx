@@ -4,11 +4,6 @@ import { AuthProvider } from '../components/AuthProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'WG Nursery System',
-  description: 'Plant nursery management system',
-}
-
 export default function RootLayout({
   children,
 }: {
