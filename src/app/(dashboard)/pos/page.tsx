@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getPlants, getCustomers, addOrder, addOrderItem, updateInventory } from '@/lib/firestore';
-import { Plant, Customer, InventoryItem } from '@/types';
+import { getPlants, getCustomers, addOrder, addOrderItem, updateInventory } from '../../../lib/firestore';
+import { Plant, Customer, InventoryItem } from '../../../types';
 import { Search, ShoppingCart, Plus, Minus, X, User, CreditCard } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 type CartItem = {
   plant: Plant;
