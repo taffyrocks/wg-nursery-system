@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, getDocs, query, where, orderBy, DocumentData } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '../../../lib/firebase';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Download, FileText, Plus, Search, FileSpreadsheet } from 'lucide-react';
