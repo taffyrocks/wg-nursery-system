@@ -6,7 +6,6 @@ import { db } from '../../../lib/firebase';
 import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-// Sample inventory data
 const sampleInventory = [
   {
     scientificName: "Monstera deliciosa",
@@ -21,13 +20,6 @@ const sampleInventory = [
     quantity: 15,
     location: "Greenhouse B",
     price: 49.99
-  },
-  {
-    scientificName: "Calathea orbifolia",
-    commonName: "Round Leaf Calathea",
-    quantity: 20,
-    location: "Greenhouse A",
-    price: 34.99
   }
 ];
 
