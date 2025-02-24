@@ -1,35 +1,33 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-const sampleProducts = [
+// Sample inventory data
+const sampleInventory = [
   {
     scientificName: "Monstera deliciosa",
     commonName: "Swiss Cheese Plant",
-    description: "Popular tropical plant with distinctive split leaves",
     quantity: 25,
-    price: 29.99,
-    location: "Greenhouse A"
+    location: "Greenhouse A",
+    price: 29.99
   },
   {
     scientificName: "Ficus lyrata",
     commonName: "Fiddle Leaf Fig",
-    description: "Tall plant with large, violin-shaped leaves",
     quantity: 15,
-    price: 49.99,
-    location: "Greenhouse B"
+    location: "Greenhouse B",
+    price: 49.99
   },
   {
     scientificName: "Calathea orbifolia",
     commonName: "Round Leaf Calathea",
-    description: "Beautiful striped leaves that move with the light",
     quantity: 20,
-    price: 34.99,
-    location: "Greenhouse A"
+    location: "Greenhouse A",
+    price: 34.99
   }
 ];
 
@@ -45,16 +43,15 @@ export default function InventoryPage() {
         const snapshot = await getDocs(inventoryRef);
         
         if (snapshot.empty) {
-          // Add sample products if inventory is empty
-          for (const product of sampleProducts) {
+          // Add sample inventory if none exists
+          for (const item of sampleInventory) {
             await addDoc(inventoryRef, {
-              ...product,
-              createdAt: new Date(),
+              ...item,
               lastUpdated: new Date()
             });
           }
           
-          // Fetch newly added products
+          // Fetch newly added items
           const newSnapshot = await getDocs(inventoryRef);
           setInventory(newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } else {
@@ -79,13 +76,13 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Inventory Management</h1>
+        <h1 className="text-2xl font-bold">Inventory</h1>
         <Link 
           href="/inventory/add" 
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
         >
           <Plus className="h-5 w-5" />
-          Add New Plant
+          Add Item
         </Link>
       </div>
 
@@ -93,7 +90,7 @@ export default function InventoryPage() {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
         <input
           type="text"
-          placeholder="Search plants..."
+          placeholder="Search inventory..."
           className="pl-10 pr-4 py-2 w-full border rounded-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -111,8 +108,8 @@ export default function InventoryPage() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plant</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -121,7 +118,6 @@ export default function InventoryPage() {
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{item.commonName}</div>
                     <div className="text-sm text-gray-500">{item.scientificName}</div>
-                    <div className="text-sm text-gray-500">{item.description}</div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-sm ${
@@ -132,8 +128,8 @@ export default function InventoryPage() {
                       {item.quantity}
                     </span>
                   </td>
-                  <td className="px-6 py-4">${item.price.toFixed(2)}</td>
                   <td className="px-6 py-4">{item.location}</td>
+                  <td className="px-6 py-4">${item.price.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
