@@ -14,7 +14,8 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "date-fns": "2.30.0",
-    "lucide-react": "0.331.0"
+    "lucide-react": "0.331.0",
+    "crypto-browserify": "3.12.1"
   },
   "devDependencies": {
     "@types/node": "20.11.19",
