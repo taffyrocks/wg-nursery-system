@@ -1,8 +1,4 @@
-$content = @'
 {
   "presets": ["next/babel"],
   "plugins": []
 }
-'@
-
-$content | Out-File -FilePath ".babelrc" -Encoding utf8
